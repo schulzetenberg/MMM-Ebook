@@ -32,51 +32,51 @@ IMG_MAX_WIDTH_PX = 450
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # Book data (use data here to construct ebook
-BOOK_DATA = os.path.join(os.path.dirname(__file__), 
+BOOK_DATA = os.path.join(os.path.dirname(__file__),
     "import_index.html_in_this_folder_in_calibre_to_create_ebook")
 MEDIA = os.path.join(BOOK_DATA, "media")
 
 class RSSParser(object):
     """Downloads (or reads from local file cache) RSS data of MMM feed"""
-    
-    def __init__(self, url, pageNo=None): 
+
+    def __init__(self, url, pageNo=None):
         self.url = url # Confusing design - URL doubles as an actual URL or a cached local file
         self.pageNo = pageNo
-              
+
         url = "file://" + self.url if Path(self.url).exists() else self.url
         print("Trying to open and parse RSS feed @ <" + url + ">...")
         doc = ET.parse(urlopen(url))
         self.root = doc.getroot()
 
-        # Cache the page        
+        # Cache the page
         if self.pageNo is not None:
-           self.url = os.path.join(CACHED_DATA, CACHED_RSS_PREFIX + 
+           self.url = os.path.join(CACHED_DATA, CACHED_RSS_PREFIX +
                 CACHED_RSS_PAGENO % (self.pageNo, ) + CACHED_RSS_SUFFIX)
            ET.ElementTree(self.root).write(open(self.url, "wb"))
-        
-    def parse(self):   
-        """Extract useful data from the RSS posting"""     
+
+    def parse(self):
+        """Extract useful data from the RSS posting"""
         for item in self.root.find('channel').findall('item'):
             title = item.find('title').text
-            url = item.find('link').text            
+            url = item.find('link').text
             text = item.find('.//content:encoded', namespaces=self.root.nsmap).text
             date = item.find('pubDate').text
             author = item.find('.//dc:creator', namespaces=self.root.nsmap).text
-            
+
             yield (
-                title.encode('utf-8'), 
-                text.encode('utf-8'), 
+                title.encode('utf-8'),
+                text.encode('utf-8'),
                 url.encode('utf-8'),
                 date.encode('utf-8'),
                 author.encode('utf-8'))
 
 def getCachedPostings():
     """Get a list of all the cached RSS data on disk"""
-    filePaths = glob.glob(os.path.join(CACHED_DATA, 
+    filePaths = glob.glob(os.path.join(CACHED_DATA,
         CACHED_RSS_PREFIX + '*' + CACHED_RSS_SUFFIX))
     filePaths.sort()
     return filePaths
-            
+
 def getLastPostPageNo():
     """Get the last RSS page number downloaded"""
     downloadedPages = getCachedPostings()
@@ -84,10 +84,10 @@ def getLastPostPageNo():
         return 1 # Pages start at 1
     downloadedPages.sort()
     lastPage = downloadedPages[-1]
-    
-    return int(re.findall(os.path.join(CACHED_DATA, CACHED_RSS_PREFIX 
+
+    return int(re.findall(os.path.join(CACHED_DATA, CACHED_RSS_PREFIX
         + r'(\d+)' + CACHED_RSS_SUFFIX), lastPage)[0])
-    
+
 
 def getLatestRssDataFromMMM():
     """Download newest RSS pages - always redownloads last page as it may
@@ -97,36 +97,36 @@ def getLatestRssDataFromMMM():
 
     parsers = []
     pageNo = getLastPostPageNo()
-    
+
     print("Downloading pages %d and newer" % (pageNo, ))
-    
+
     while True:
         try:
             print(MMM_RSS_URL)
-            parser = RSSParser(MMM_RSS_URL % (pageNo), pageNo)            
+            parser = RSSParser(MMM_RSS_URL % (pageNo), pageNo)
             parsers.append(parser)
             pageNo += 1
         except IOError as e:
             print(f'Failed to open last (end of detected RSS pages), error: {e}')
             break
-            
+
     return parsers
 
 
 def getRssData():
-    """Gets a list of all RSS data from cache and downloads"""    
+    """Gets a list of all RSS data from cache and downloads"""
     parsers = []
-    
+
     print("Parsing cached pages from disk")
-    
+
     # First parse our cached pages
     for cachedPageFilePath in getCachedPostings():
          parsers.append(RSSParser(cachedPageFilePath)) # No page number necessary since cached
-         
+
     parsers.extend(getLatestRssDataFromMMM())
-    
+
     return parsers
-    
+
 class Post(object):
     """Once we have the RSS data and have started parsing it, we can break
         it down into posts"""
@@ -137,7 +137,7 @@ class Post(object):
         self.text = text
         self.date = date
         self.author = author
-        
+
         if num is None:
             num = Post.next
             Post.next = Post.next + 1
@@ -147,38 +147,38 @@ def createPostingsFromParsedRss(parsers):
     """Create a list of all the posts from the RSS data"""
     postsInOrder = []
     posts = {}
-    
+
     for parser in parsers:
         for (title, text, url, date, author) in parser.parse():
             postsInOrder.append(url)
-            posts[url] = Post(title, text, date, author)      
+            posts[url] = Post(title, text, date, author)
 
     return (posts, postsInOrder)
-    
-                            
+
+
 def getCachedUrlMaps():
     if not os.path.isdir(CACHED_DATA):
         os.mkdir(CACHED_DATA)
-        
+
     if not os.path.isfile(CACHED_URL_MAP):
         return ({}, {})
-    
+
     remoteToLocal, localToRemote = pickle.load(open(CACHED_URL_MAP, 'rb'))
-     
+
     return (remoteToLocal, localToRemote)
-    
+
 def saveUrlMaps(remoteToLocal, localToRemote):
     if not os.path.isdir(CACHED_DATA):
         os.mkdir(CACHED_DATA)
-        
+
     pickle.dump((remoteToLocal, localToRemote), open(CACHED_URL_MAP, 'wb'))
-    
+
 def rewritePostLinks(posts, postsInOrder):
     """We do this once we have all the posts since sometimes MMM goes back
         and edits earlier posts to include a link to a later posting"""
-        
+
     print("Rewriting post links...")
-            
+
     for url in postsInOrder:
         post = posts[url]
         text = post.text if isinstance(post.text, str) else post.text.decode('utf-8')
@@ -186,7 +186,7 @@ def rewritePostLinks(posts, postsInOrder):
         for url2 in postsInOrder:
             regex = re.compile('<a\\s(.*href=")%s(".*)>(.*)</a>' % url2)
             post.text = regex.sub('<a \\1' + posts[url2].localUrl + '\\2>\\3</a>', text)
-            
+
 def rewriteImageLinks(posts):
     print("Rewriting image links...")
 
@@ -236,14 +236,14 @@ def rewriteImageLinks(posts):
             text = re.sub(r'srcset=".*"', "", text)
             text = text.replace(imageurl, outputImageRelativePath)
         post.text = text
-    
+
 def createBookData(posts, postsInOrder):
     print("Creating book data...")
-    
+
     shutil.copyfile(COVER_PATH, os.path.join(BOOK_DATA, 'Cover.png'))
 
     index = open(os.path.join(BOOK_DATA, 'index.html'), 'w')
-    
+
     index.write(f'''<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -261,7 +261,7 @@ def createBookData(posts, postsInOrder):
     for url in postsInOrder:
         post = posts[url]
         text = post.text if isinstance(post.text, str) else post.text.decode('utf-8')
-        
+
         open(os.path.join(BOOK_DATA, post.localUrl), 'w').write(
             '<!DOCTYPE html>\n' + \
             '<html lang="en">\n' + \
@@ -278,18 +278,24 @@ def createBookData(posts, postsInOrder):
             '</html>')
         chapter += 1
         index.write(f'{chapter}. <a href=%s>%s</a><br/>\n' % (post.localUrl, post.title.decode('utf-8')))
-        
+
     index.write('''     </p>
    </body>
 </html>''')
 
 def generateEbooks():
     print("Generating eBooks...")
+    outputDir = ""
 
-    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", "Ebooks/mmm.azw3", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--pubdate", f"{date.today()}", "--cover", "Cover.png"])
-    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", "Ebooks/mmm.epub", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--pubdate", f"{date.today()}", "--cover", "Cover.png"])
-    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", "Ebooks/mmm.mobi", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--pubdate", f"{date.today()}", "--cover", "Cover.png"])
-    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", "Ebooks/mmm.pdf", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--cover", "Cover.png"])
+    if len(sys.argv) > 1:
+        outputDir = sys.argv[1] + "/"
+
+    print("Output directory: " + outputDir)
+
+    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", outputDir + "mmm.azw3", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--pubdate", f"{date.today()}", "--cover", "Cover.png"])
+    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", outputDir + "mmm.epub", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--pubdate", f"{date.today()}", "--cover", "Cover.png"])
+    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", outputDir + "mmm.mobi", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--pubdate", f"{date.today()}", "--cover", "Cover.png"])
+    subprocess.run(["ebook-convert", "import_index.html_in_this_folder_in_calibre_to_create_ebook/index.html", outputDir + "mmm.pdf", "--title", "Financial Freedom Through Badassity", "--authors", "Mr. Money Mustache", "--cover", "Cover.png"])
 
     print("Finished generating Ebooks")
 
@@ -306,6 +312,6 @@ def main():
     rewriteImageLinks(posts)
     createBookData(posts, postsInOrder)
     generateEbooks()
-            
+
 if __name__=="__main__":
     main()

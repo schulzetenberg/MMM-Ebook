@@ -10,4 +10,4 @@ ENV QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox"
 RUN apt-get update && apt-get install -y python3-pip && apt-get install -y calibre
 COPY requirements.txt generate-ebooks.py Cover.png ./
 RUN pip install --no-cache-dir -r requirements.txt
-CMD ["python3", "./generate-ebooks.py"]
+CMD ["python3", "./generate-ebooks.py", "Ebooks"]
