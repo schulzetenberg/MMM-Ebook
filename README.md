@@ -1,16 +1,15 @@
-This is a fork of [beege/MMM-Ebook](https://github.com/beege/MMM-Ebook) updated to use Python3 and generate ebooks so you do not need to manually generate ebooks in Calibre, and to include images hosted at mrmoneymustache.com.
+This utility scrapes [Mr. Money Mustache's blog](http://www.mrmoneymustache.com/) and generates ebooks in multiple formats (azw3, epub, mobi, pdf)
 
-This utility scrapes [Mr. Money Mustache's blog](http://www.mrmoneymustache.com/) and outputs HTML pages to import through a tool such as Calibre to create into an EBook of the desired format.
-
-## Download the Ebooks
+## Download The Ebooks
 The ebook files are found in [Releases](https://github.com/schulzetenberg/MMM-Ebook/releases)
 
-## Use
+## Generate New Ebooks With The Latest Posts
 You can either:
+* Fork this repo and run the `release` workflow in Github to create a new release
 * Use docker to auto generate the ebooks
 * Install the required dependencies directly on your machine and run the python script to generate the ebooks
-### Docker
 
+### Docker
 
 To build the docker image, run the following command from the root of the repo:
 
